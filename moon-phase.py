@@ -28,16 +28,11 @@ class Moon:
         self.texture = load_texture(texture_path)
         self.angle = 0.0  # Ângulo para rotacionar a luz (simulação de fases da lua)
 
-    # Desenhar a esfera texturizada (lua) com base na posição da luz
-    def draw(self, light_position):
+    # Desenhar a esfera texturizada (lua)
+    def draw(self):
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, self.texture)
         
-        # Aplicar iluminação e posição da luz
-        glEnable(GL_LIGHTING)
-        glLightfv(GL_LIGHT0, GL_POSITION, light_position)
-
-        # Desenhar a lua como uma esfera
         quadric = gluNewQuadric()
         gluQuadricTexture(quadric, GL_TRUE)
         gluSphere(quadric, 1, 32, 32)
@@ -148,6 +143,8 @@ def moon_simulation():
     angle_x, angle_y = 0.0, 0.0  # Ângulos de rotação
     last_mouse_pos = (0, 0)  # Última posição do mouse
     dragging = False  # Para verificar se o mouse está sendo arrastado
+    rotate = True  # Controla se a rotação contínua está ativada
+    phase_control = None  # Fase lunar manual (None = rotação contínua)
     
     gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
     glEnable(GL_DEPTH_TEST)
@@ -156,8 +153,6 @@ def moon_simulation():
     moon = Moon('moon.png')  # Inicializar o objeto Lua
     sun = Sun('sun.png')  # Inicializar o objeto Sol com textura
 
-    phase_control = 0.5  # Controle para as fases da lua
-    
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -174,8 +169,6 @@ def moon_simulation():
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:  # Botão esquerdo do mouse
                     dragging = False
-
-            # Verificar se uma tecla foi pressionada
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
                     phase_control = 0  # Lua Nova
@@ -185,6 +178,8 @@ def moon_simulation():
                     phase_control = 180  # Lua Cheia
                 elif event.key == pygame.K_4:
                     phase_control = 270  # Quarto Minguante
+                elif event.key == pygame.K_5:
+                    phase_control = None  # Alternar para rotação contínua
 
         if dragging:
             current_mouse_pos = pygame.mouse.get_pos()
@@ -206,27 +201,33 @@ def moon_simulation():
 
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
-
+        
         # Aplicar rotação da câmera
         glRotatef(angle_x, 1, 0, 0)  # Rotacionar em torno do eixo x
         glRotatef(angle_y, 0, 1, 0)  # Rotacionar em torno do eixo y
 
-        # Configurar iluminação a partir da posição do Sol, ajustada com phase_control
-        light_position = [5 * math.cos(math.radians(phase_control)), 0.0, 5 * math.sin(math.radians(phase_control)), 1.0]
+        # Configurar iluminação a partir da posição do Sol
+        light_position = [5 * math.cos(math.radians(sun.angle)), 0.0, 5 * math.sin(math.radians(sun.angle)), 1.0]
         setup_lighting(light_position)
 
         # Desenhar o Sol
         sun.draw()
 
-        # Desenhar a lua com a posição da luz
+        # Desenhar a lua
         glPushMatrix()
-        moon.draw(light_position)  # Agora passamos light_position corretamente
+        moon.draw()  # Usar a classe Lua para desenhar a lua
         glPopMatrix()
+
+        # Atualizar ângulos baseados na opção de fase ou rotação contínua
+        if phase_control is None:
+            moon.update_angle(0.5)  # Rotação contínua
+            sun.update_angle(0.5)  # O Sol continua orbitando
+        else:
+            moon.angle = phase_control  # Fase específica da Lua
+            sun.angle = phase_control  # Sol sincronizado
 
         pygame.display.flip()
         pygame.time.wait(10)
-
-
 
 if __name__ == "__main__":
     moon_simulation()
