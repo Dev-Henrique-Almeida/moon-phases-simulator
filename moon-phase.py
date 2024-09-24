@@ -5,7 +5,6 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 import math
 
-# Função para carregar textura globalmente
 def load_texture(image_path):
     texture_surface = pygame.image.load(image_path).convert_alpha()
     texture_data = pygame.image.tostring(texture_surface, "RGBA", 1)
@@ -22,136 +21,121 @@ def load_texture(image_path):
 
     return texture_id
 
-# Classe para gerenciar dados da lua (Estrutura de Dados)
+class Earth:
+    def __init__(self, texture_path):
+        self.texture = load_texture(texture_path)
+        self.angle = 0.0
+
+    def draw(self):
+        glPushMatrix()
+        glTranslatef(10 * math.cos(math.radians(self.angle)), 0, 10 * math.sin(math.radians(self.angle)))
+        glEnable(GL_TEXTURE_2D)
+        glBindTexture(GL_TEXTURE_2D, self.texture)
+        quadric = gluNewQuadric()
+        gluQuadricTexture(quadric, GL_TRUE)
+        gluSphere(quadric, 2, 32, 32)
+        gluDeleteQuadric(quadric)
+        glDisable(GL_TEXTURE_2D)
+        glPopMatrix()
+
+    def update_angle(self, delta):
+        self.angle += delta
+
 class Moon:
     def __init__(self, texture_path):
         self.texture = load_texture(texture_path)
-        self.angle = 0.0  # Ângulo para rotacionar a luz (simulação de fases da lua)
+        self.angle = 0.0
 
-    # Desenhar a esfera texturizada (lua)
-    def draw(self):
+    def draw(self, earth_x, earth_z):
+        glPushMatrix()
+        glTranslatef(earth_x + 5 * math.cos(math.radians(self.angle)), 0, earth_z + 5 * math.sin(math.radians(self.angle)))
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, self.texture)
-        
         quadric = gluNewQuadric()
         gluQuadricTexture(quadric, GL_TRUE)
         gluSphere(quadric, 1, 32, 32)
         gluDeleteQuadric(quadric)
-        
         glDisable(GL_TEXTURE_2D)
+        glPopMatrix()
 
-    # Atualizar o ângulo da fase da lua
     def update_angle(self, delta):
         self.angle += delta
 
-# Classe para gerenciar o Sol
 class Sun:
     def __init__(self, texture_path):
         self.texture = load_texture(texture_path)
-        self.angle = 0.0  # Ângulo de rotação do sol ao redor da lua
 
-    # Desenhar o Sol
     def draw(self):
         glPushMatrix()
-        glTranslatef(10 * math.cos(math.radians(self.angle)), 0, 10 * math.sin(math.radians(self.angle)))  # Posicionar o Sol mais distante
-        
-        # Adicionar luz emissiva para simular o brilho do Sol
-        glMaterialfv(GL_FRONT, GL_EMISSION, [1.0, 1.0, 0.0, 1.0])  # Emitir luz amarela
-
+        glTranslatef(0, 0, 0)
+        glMaterialfv(GL_FRONT, GL_EMISSION, [1.0, 1.0, 0.0, 1.0])
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, self.texture)
-
         quadric = gluNewQuadric()
         gluQuadricTexture(quadric, GL_TRUE)
-        gluSphere(quadric, 3, 32, 32)  # Desenhar o Sol como uma esfera grande (3x o tamanho da Lua)
+        gluSphere(quadric, 3, 32, 32)
         gluDeleteQuadric(quadric)
-
         glDisable(GL_TEXTURE_2D)
-
-        # Desabilitar luz emissiva após desenhar o Sol
         glMaterialfv(GL_FRONT, GL_EMISSION, [0.0, 0.0, 0.0, 1.0])
-
         glPopMatrix()
 
-    # Atualizar o ângulo do Sol para a órbita
-    def update_angle(self, delta):
-        self.angle += delta
-
-# Configurar iluminação
 def setup_lighting(light_position):
     glEnable(GL_LIGHTING)
     glEnable(GL_LIGHT0)
     glLightfv(GL_LIGHT0, GL_POSITION, light_position)
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])  # Luz branca brilhante para a luz solar
-    glLightfv(GL_LIGHT0, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])  # Reflexão especular
-    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.1, 0.1, 0.1, 1.0])  # Luz ambiente baixa
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
+    glLightfv(GL_LIGHT0, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
+    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.1, 0.1, 0.1, 1.0])
 
-# Classe para gerenciar o fundo
 class Background:
     def __init__(self, texture_path):
         self.texture = load_texture(texture_path)
 
-    # Desenhar o fundo para sempre preencher a tela
     def draw(self, display_width, display_height):
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
-        glOrtho(0, display_width, 0, display_height, -1, 1)  # Configurar projeção ortográfica
-
+        glOrtho(0, display_width, 0, display_height, -1, 1)
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glLoadIdentity()
-
-        # Desabilitar iluminação e teste de profundidade para garantir que o fundo seja desenhado atrás de tudo
         glDisable(GL_LIGHTING)
         glDisable(GL_DEPTH_TEST)
-
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, self.texture)
-
-        # Desenhar o quad do fundo para preencher a tela
         glBegin(GL_QUADS)
         glTexCoord2f(0.0, 0.0)
-        glVertex2f(0, 0)  # Inferior esquerdo
+        glVertex2f(0, 0)
         glTexCoord2f(1.0, 0.0)
-        glVertex2f(display_width, 0)  # Inferior direito
+        glVertex2f(display_width, 0)
         glTexCoord2f(1.0, 1.0)
-        glVertex2f(display_width, display_height)  # Superior direito
+        glVertex2f(display_width, display_height)
         glTexCoord2f(0.0, 1.0)
-        glVertex2f(0, display_height)  # Superior esquerdo
+        glVertex2f(0, display_height)
         glEnd()
-
         glDisable(GL_TEXTURE_2D)
-
-        # Reabilitar iluminação e teste de profundidade para outros objetos
         glEnable(GL_LIGHTING)
         glEnable(GL_DEPTH_TEST)
-
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
-
         glMatrixMode(GL_MODELVIEW)
         glPopMatrix()
 
-# Simulação 3D principal das fases da lua
 def moon_simulation():
     pygame.init()
-    display = (800, 600)
+    display = (1600, 800)
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
-
-    zoom = -8  # Nível de zoom inicial
-    angle_x, angle_y = 0.0, 0.0  # Ângulos de rotação
-    last_mouse_pos = (0, 0)  # Última posição do mouse
-    dragging = False  # Para verificar se o mouse está sendo arrastado
-    rotate = True  # Controla se a rotação contínua está ativada
-    phase_control = None  # Fase lunar manual (None = rotação contínua)
-    
+    zoom = -28
+    angle_x, angle_y = 0.0, 0.0
+    last_mouse_pos = (0, 0)
+    dragging = False
+    phase_control = None
     gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
     glEnable(GL_DEPTH_TEST)
-    
-    background = Background('background.png')  # Inicializar o fundo
-    moon = Moon('moon.png')  # Inicializar o objeto Lua
-    sun = Sun('sun.png')  # Inicializar o objeto Sol com textura
+    background = Background('images/background.png')
+    moon = Moon('images/moon.png')
+    earth = Earth('images/earth.png')
+    sun = Sun('images/sun.png')
 
     while True:
         for event in pygame.event.get():
@@ -159,27 +143,27 @@ def moon_simulation():
                 pygame.quit()
                 quit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 4:  # Rolagem para cima
+                if event.button == 4:
                     zoom += 0.5
-                elif event.button == 5:  # Rolagem para baixo
+                elif event.button == 5:
                     zoom -= 0.5
-                elif event.button == 1:  # Botão esquerdo do mouse
+                elif event.button == 1:
                     last_mouse_pos = pygame.mouse.get_pos()
                     dragging = True
             elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1:  # Botão esquerdo do mouse
+                if event.button == 1:
                     dragging = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
-                    phase_control = 0  # Lua Nova
+                    phase_control = 0
                 elif event.key == pygame.K_2:
-                    phase_control = 90  # Quarto Crescente
+                    phase_control = 90
                 elif event.key == pygame.K_3:
-                    phase_control = 180  # Lua Cheia
+                    phase_control = 180
                 elif event.key == pygame.K_4:
-                    phase_control = 270  # Quarto Minguante
+                    phase_control = 270
                 elif event.key == pygame.K_5:
-                    phase_control = None  # Alternar para rotação contínua
+                    phase_control = None
 
         if dragging:
             current_mouse_pos = pygame.mouse.get_pos()
@@ -189,45 +173,28 @@ def moon_simulation():
             last_mouse_pos = current_mouse_pos
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        # Desenhar o fundo (tela cheia em projeção ortográfica)
         background.draw(display[0], display[1])
-
-        # Atualizar a matriz de projeção para o zoom
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)  # Redefinir matriz de projeção
-        glTranslatef(0.0, 0.0, zoom)  # Aplicar zoom
-
+        gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
+        glTranslatef(0.0, 0.0, zoom)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
-        
-        # Aplicar rotação da câmera
-        glRotatef(angle_x, 1, 0, 0)  # Rotacionar em torno do eixo x
-        glRotatef(angle_y, 0, 1, 0)  # Rotacionar em torno do eixo y
-
-        # Configurar iluminação a partir da posição do Sol
-        light_position = [5 * math.cos(math.radians(sun.angle)), 0.0, 5 * math.sin(math.radians(sun.angle)), 1.0]
+        glRotatef(angle_x, 1, 0, 0)
+        glRotatef(angle_y, 0, 1, 0)
+        light_position = [0.0, 0.0, 0.0, 1.0]
         setup_lighting(light_position)
-
-        # Desenhar o Sol
         sun.draw()
-
-        # Desenhar a lua
-        glPushMatrix()
-        moon.draw()  # Usar a classe Lua para desenhar a lua
-        glPopMatrix()
-
-        # Atualizar ângulos baseados na opção de fase ou rotação contínua
+        earth.update_angle(0.1)
+        earth_x = 10 * math.cos(math.radians(earth.angle))
+        earth_z = 10 * math.sin(math.radians(earth.angle))
+        earth.draw()
         if phase_control is None:
-            moon.update_angle(0.5)  # Rotação contínua
-            sun.update_angle(0.5)  # O Sol continua orbitando
+            moon.update_angle(0.3)
         else:
-            moon.angle = phase_control  # Fase específica da Lua
-            sun.angle = phase_control  # Sol sincronizado
-
+            moon.angle = phase_control
+        moon.draw(earth_x, earth_z)
         pygame.display.flip()
         pygame.time.wait(10)
 
-if __name__ == "__main__":
-    moon_simulation()
+moon_simulation()
